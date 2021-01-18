@@ -38,16 +38,19 @@ fi
 function mensaje() {
     case $1 in
         creando_directorios)
-            echo -n "Creando estructura de directorios.....................................["
+            echo -n "Creando estructura de directorios................["
             ;;
         copiando_archivos)
-            echo -n "Copiando archivos.....................................................["
+            echo -n "Copiando archivos................................["
             ;;
         verificando_repositorio_local)
-            echo -n "Verificando existencia de repositorio local...........................["
+            echo -n "Verificando repositorio local....................["
             ;;
         clonando_repositorio)  
-            echo -n "Clonando repositorio cpp.template.....................................["
+            echo -n "Clonando cpp.template............................["
+            ;;
+        eliminando_proyecto)
+            echo -n "Limpiando el directorio..........................["
             ;;
         bienvenida)
             echo -e "Creando estructura de proyecto en ${dark_blue}C++${NOC} para${dark_blue} ${os_name}${NOC}"
@@ -59,9 +62,40 @@ function mensaje() {
             echo -e "${red}FAIL${NOC}]"
             ;;
         skip)
-            echo -e "${red}SKIP${NOC}]"
+            echo -e "${skip_color}SKIP${NOC}]"
             ;;
-    esac
+      esac
+}
+
+function clean {
+    if [ -d "src" ] || [ -d "obj" ] || [ -d "bin" ]; then
+
+        echo -e "${message_title}Atención!"
+        echo -e "\t${message_body}El proyecto se eliminará por completo y no se podra recuperar.${NOC}"
+        echo
+        read -p "¿Desea continuar? [S/n]:" answer
+        case $answer in
+                "")
+                    mensaje eliminando_proyecto
+                    rm -rf src/ obj/ bin/ Makefile .gitignore > /dev/null 2>&1
+                    mensaje ok
+                    ;;
+                s | S)
+                    mensaje eliminando_proyecto
+                    rm -rf src/ obj/ bin/ Makefile .gitignore > /dev/null 2>&1
+                    mensaje ok
+                    ;;
+                n | N)
+                    exit 0
+                    ;;
+                *)
+                    exit 0
+                    ;;
+            esac
+    else 
+        echo -e "${NOC}Nada que eliminar..."
+    fi
+
 }
 
 function clone_repo() {
@@ -75,41 +109,53 @@ function clone_repo() {
 
 function copiar_archivos() {
     mensaje copiando_archivos
-    echo -e "${message_body}Copindo Makefile..."
-    cp ${repositorio_local}/cpp.template/Makefile . > /dev/null 2>&1
-    echo -e "Copiando .gitignore..." 
-    cp ${repositorio_local}/cpp.template/gitignore .gitignore > /dev/null 2>&1
+    cp ${repositorio_local}${nombre_repositorio}/Makefile . > /dev/null 2>&1
+    cp ${repositorio_local}${nombre_repositorio}/gitignore .gitignore > /dev/null 2>&1
+    if [ -d "src" ]; then
+        cp ${repositorio_local}${nombre_repositorio}/Launcher.cpp src/Launcher.cpp > /dev/null 2>&1
+    else
+        echo "el dir src no encontrado..."
+    fi
     mensaje ok
+}
+
+function mensaje_terminate_script() {
+   
+    mensaje skip
+    echo -e "${message_body}Los directorios ya existen, saliendo del scritp.${NOC}"
+    exit -1
 }
 
 function crear_estructura_de_directorios() {
 
     mensaje creando_directorios
     if [ -d "src" ]; then
-        mensaje skip
-        exit
+        mensaje_terminate_script
     else
-       mkdir "src" > /dev/null 2>&1  
+       mkdir -p "src/clases" > /dev/null 2>&1  
     fi
 
     if [ -d "obj" ]; then
-        echo "directorio obj ya existe..."
+        mensaje_terminate_script
     else
        mkdir "obj" > /dev/null 2>&1  
     fi
 
     if [ -d "bin" ]; then
-        echo "directorio bin ya existe..."
+        mensaje_terminate_script
     else
        mkdir "bin" > /dev/null 2>&1  
     fi
     mensaje ok
-
 }
 
-mensaje bienvenida
+
 if [ $# -gt 0 ]; then
-    echo "existen argumentos para analizar..."
+    if [ $1 == "clean" ];then
+        clean        
+    else 
+        mensaje bienvenida
+    fi
 else
     # Chequeando si existe el directorio con el repositorio.
     mensaje verificando_repositorio_local
@@ -117,24 +163,28 @@ else
         # El repositorio existe y tiene los archivos para ser copiados en el directorio.
         mensaje ok
         crear_estructura_de_directorios
+        copiar_archivos
     else
         mensaje fail
-        echo -e "${message_title}Mensaje:${NOC}${message_body}\n\tEl repositorio no se encuentra en ${repositorio_local}"
-        echo -e "\tmodifique la variable del script ${0} en la linea repositorio_local="
-		echo -e "\the indique la ruta al repositorio${NOC}"
+        echo -e "${message_title}Mensaje:${NOC}${message_body}\n\tEl repositorio no se encuentra en la ruta: ${repositorio_local}${NOC}"
         echo 
-        read -p "¿Desea clonar el repositorio en la ruta por defecnto? [Si/no]:" answer
+        read -p "¿Desea clonar el repositorio en la ruta por defecto? [Si/no]:" answer
         case $answer in
             "")
                 clone_repo
+                crear_estructura_de_directorios
+                copiar_archivos
                 ;;
              s | S)
                 clone_repo
+                crear_estructura_de_directorios
+                copiar_archivos
                 ;;
             n | N)
-                echo -e "${message_body}\n\tPuede clonar el repositorio cpp.template, desde github"
-                echo -e "\ten su equipo y luego indicar la ruta en la variable repositorio_local="
-                echo -e "\ten el archivo de script $0"
+                echo -e "${message_body}\n\tcpp.template es necesario para crear las estructuras de directorio"
+                echo -e "\tpara proeyctos en c++."
+                echo -e "\tpuede clonarlo desde github y luego indicar su ruta en la variable del script"
+                echo -e "\trepositorio_local="
                 echo 
                 echo -e "\tgit clone https://github.com/jaimefeldman/cpp.template.git"
 
@@ -142,7 +192,7 @@ else
                 ;;
             *)
                 echo "respuesta no valida..."
-                echo -e "${message_body}adios..${NOC}"
+                echo -e "${message_body}script terminated...${NOC}"
                 ;;
         esac
     fi
